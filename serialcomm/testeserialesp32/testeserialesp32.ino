@@ -15,7 +15,7 @@ void TaskRx(void *pvParameters) {
     while (SerialRPi.available() > 0) {
       char c = SerialRPi.read();
 
-      // Marcador de início de pacote válido
+      //inicio do pacote valido 
       if (c == '<') {
         lendoMensagem = true;
         mensagem = "";
@@ -28,9 +28,9 @@ void TaskRx(void *pvParameters) {
           lendoMensagem = false;
         }
       } 
-      // Acumula apenas os caracteres válidos dentro do pacote
+      
       else if (lendoMensagem) {
-        if (c >= 32 && c <= 126) { // Aceita apenas caracteres ASCII imprimíveis
+        if (c >= 32 && c <= 126) { //aceita apenas ascii
           mensagem += c;
         }
       }
@@ -47,10 +47,10 @@ void setup() {
 
   Serial.println("\n--- ESP32 Receptor com Filtro Anti-Ruído ---");
 
-  // Habilita o Pull-Up interno no pino RXD2
+  //pull up do rx para nao ter ruido
   pinMode(RXD2, INPUT_PULLUP);
 
-  // Inicializa a Serial com a Raspberry Pi
+  //inicializa a serial com a raspberry pi
   SerialRPi.begin(BAUDRATE, SERIAL_8N1, RXD2, -1);
 
   xTaskCreatePinnedToCore(
