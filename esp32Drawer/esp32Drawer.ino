@@ -6,6 +6,9 @@
 #include <string>
 #include <ESP32Servo.h>
 #include <TFT_eSPI.h>
+#include <Arduino.h>
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 
 // 4 = 4-wire full-step (faster, ~2048 steps/rev)
 // 8 = 4-wire half-step (smoother, ~4096 steps/rev)
@@ -29,6 +32,12 @@
 #define SERVO 3
 
 #define DISPLAY_POWER_ON 15
+
+#define RXD2 13
+#define TXD2 12
+#define BAUDRATE 115200
+
+TaskHandle_t xTaskRxHandle = NULL;
 
 Servo servZ;
 
@@ -185,9 +194,41 @@ class Text_Conversion{
 
     }
 
-    void listenToNewText(){
+    void listenToNewText(void *pvParameters){
       // fica constantemente ouvindo a entrada serial para detectar se a rasp enviou algum texto
-    }
+      bool lendoMensagem = false;
+        String mensagem = "";
+        mensagem.reserve(64);
+
+        for (;;) {
+          while (SerialRPi.available() > 0) {
+            char c = SerialRPi.read();
+
+            
+            if (c == '<') {
+              lendoMensagem = true;
+              mensagem = "";
+            } 
+            
+            else if (c == '>') {
+              if (lendoMensagem) {
+                Serial.print("[RECEBIDO COM SUCESSO]: ");
+                Serial.println(mensagem);
+                lendoMensagem = false;
+              }
+            } 
+            //pega apenas os caracteres válidos dentro do pacote
+            else if (lendoMensagem) {
+              if (c >= 32 && c <= 126) {//ascii 
+                mensagem += c;
+              }
+            }
+
+            vTaskDelay(pdMS_TO_TICKS(1));
+          }
+          vTaskDelay(pdMS_TO_TICKS(10));
+        }
+          }
 };
 
 class Display{
@@ -243,12 +284,21 @@ void setup(){
 
   display.setup();
   display.showText("VAMO TELLER JULIA BIAAA");
+
+  pinMode(RXD2, INPUT_PULLUP);
+  SerialRPi.begin(BAUDRATE, SERIAL_8N1, RXD2, -1);
+
+  xTaskCreatePinnedToCore(
+    listenToNewText, "listenToNewText", 4096, NULL, 1, NULL, 1
+  );
   
 }
 
 void loop(){
   
   textConversion.listenToNewText();
+  vTaskDelay(pdMS_TO_TICKS(1000));
+
   // caso escute algo no serial, passar para as funções de desenho e ir acumulando em um array de coisas para escrever, como uma fila
   
 }
