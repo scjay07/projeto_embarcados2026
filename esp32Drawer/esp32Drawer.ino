@@ -10,17 +10,17 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
-// 4 = 4-wire full-step (faster, ~2048 steps/rev)
-// 8 = 4-wire half-step (smoother, ~4096 steps/rev)
+//4 = 4-wire full-step (faster, ~2048 steps/rev)
+//8 = 4-wire half-step (smoother, ~4096 steps/rev)
 #define MOTOR_INTERFACE_TYPE 4
 
-// Motor X Pins: IN1, IN2, IN3, IN4
+//Motor X Pins: IN1, IN2, IN3, IN4
 #define X_IN1 10
 #define X_IN2 11
 #define X_IN3 12
 #define X_IN4 13
 
-// Motor Y Pins: IN1, IN2, IN3, IN4
+//Motor Y Pins: IN1, IN2, IN3, IN4
 #define Y_IN1 43
 #define Y_IN2 44
 #define Y_IN3 21
@@ -28,27 +28,27 @@
 
 #define BOT_FC_X 1
 #define BOT_FC_Y 2
+#define BOT_PAPEL 12
 
 #define SERVO 3
 
 #define DISPLAY_POWER_ON 15
 
 #define RXD2 13
-#define TXD2 12
 #define BAUDRATE 115200
 
 TaskHandle_t xTaskRxHandle = NULL;
 
 Servo servZ;
 
-const int MAX_X_OFFSET = 100000; // alterar para algo compatível com a estrutura final
-const int MAX_Y_OFFSET = 100000; // alterar para algo compatível com a estrutura final
+const int MAX_X_OFFSET = 100000; //alterar para algo compatível com a estrutura final
+const int MAX_Y_OFFSET = 100000; //alterar para algo compatível com a estrutura final
 
 const int MAX_SPEED = 400;
 
 const int FONT_SCALE = 10;
 
-// IMPORTANT: Wire order passed to AccelStepper MUST be: IN1, IN3, IN2, IN4
+//IMPORTANT: Wire order passed to AccelStepper MUST be: IN1, IN3, IN2, IN4
 AccelStepper stepperX(MOTOR_INTERFACE_TYPE, X_IN1, X_IN3, X_IN2, X_IN4);
 AccelStepper stepperY(MOTOR_INTERFACE_TYPE, Y_IN1, Y_IN3, Y_IN2, Y_IN4);
 
@@ -85,18 +85,63 @@ class Bot_FC_Y{
     }
 };
 
+class Bot_Papel{
+  public:
+    void setup(){
+      pinMode(BOT_PAPEL, INPUT_PULLUP);
+    }
+    bool isPressed(){
+      if(digitalRead(BOT_PAPEL) == LOW){
+        return true;
+      }else{
+        return false;
+      }
+    }
+};
+
 Bot_FC_X botFCX;
 Bot_FC_Y botFCY;
+Bot_Papel botPapel;
+
+class Display{
+  public:
+
+    char* lastDisplay;
+
+    void setup(){
+      //1. Turn on power to the peripheral and display rail
+      pinMode(DISPLAY_POWER_ON, OUTPUT);
+      digitalWrite(DISPLAY_POWER_ON, HIGH);
+      delay(100);
+
+      //2. Initialize display
+      tft.init();
+      tft.setRotation(1); //1 or 3 for landscape (320x170), 0 or 2 for portrait (170x320)
+      tft.fillScreen(TFT_BLACK);
+    }
+    void showText(char* text){
+      if(lastDisplay == text){
+        return;
+      }else{
+        lastDisplay = text;
+      }
+      tft.fillScreen(TFT_BLACK);
+      tft.drawRect(10, 10, 300, 150, TFT_BLUE);
+      tft.setTextColor(TFT_GREEN, TFT_BLACK);
+      tft.setTextSize(2);
+      tft.drawString(text, 20, 30);
+    }
+};
 
 class Ctrl{
   public:
 
-    int xOffset = 0; // para levar em conta próximas letras e palavras
-    int yOffset = 0; // para levar em conta mudanças de linha
+    int xOffset = 0; //para levar em conta próximas letras e palavras
+    int yOffset = 0; //para levar em conta mudanças de linha
 
     void zeroPosition(){
-      // enquanto botão fim de curso x não grita: vai pra origem x
-      // enquanto botão fim de curso y não grita: vai pra origem y
+      //enquanto botão fim de curso x não grita: vai pra origem x
+      //enquanto botão fim de curso y não grita: vai pra origem y
       while(botFCX.isPressed() == false){
         stepperX.move(-1);
       }
@@ -108,19 +153,19 @@ class Ctrl{
     }
 
     void liftPen(Servo* servZ){
-      // controla o servo para levantar a caneta
+      //controla o servo para levantar a caneta
       servZ->write(0);
     };
 
     void lowerPen(Servo* servZ){
-      // controla o servo para abaixar a caneta
+      //controla o servo para abaixar a caneta
       servZ->write(100);
     };
 
     void lineMove(int x, int y){
       long target[2];
 
-      // as coordenadas são absolutas. NÃO SÃO RELATIVAS
+      //as coordenadas são absolutas. NÃO SÃO RELATIVAS
       target[0] = x;
       target[1] = y;
 
@@ -128,18 +173,27 @@ class Ctrl{
       steppers.runSpeedToPosition();
     }
 
-    void checkLimits(int addX, int addY){
-      //false = out of bounds; true = in bounds
+    int checkLimits(int addX, int addY){
+      //0 = out of bounds x; 1 = out of bounds y; 2 = in bounds
       if(xOffset + addX > MAX_X_OFFSET){
-        return false;
+        return 0;
       }else if(yOffset + addY > MAX_Y_OFFSET){
-        return false;
+        return 1;
       }
-      return true;
+      return 2;
     }
 
-    void requestNewPage(){
-      // pausa a execução de tudo e demanda troca de folha, até que o usuário aperte o botão de falar afirmando que a folha foi trocada
+    void requestNewPage(Ctrl* control, Servo* servZ, Display* display, Bot_Papel* botPapel){
+      control->liftPen(servZ);
+      display->showText("Troque a folha de papel!");
+      while(botPapel->isPressed() == false){
+        //wait
+        //perguntar para julinha como continuar ouvindo RX enquanto nesse estado
+      }
+      display->showText("Novo papel recebido! Zerando os eixos...");
+      control->zeroPosition();
+      control->xOffset = 0;
+      control->yOffset = 0;
     }
 };
 
@@ -147,8 +201,8 @@ class Text_Conversion{
   public:
     int charToIndex(char c){
 
-      // já que começamos no char=32 e terminamos no char=127, em ordem,
-      // para converter de char para index basta subtrair 32:
+      //já que começamos no char=32 e terminamos no char=127, em ordem,
+      //para converter de char para index basta subtrair 32:
       
       return (unsigned char)c - 32;
       
@@ -156,10 +210,10 @@ class Text_Conversion{
 
     void indexToDrawGlyph(int index, Ctrl* control, Servo* servZ){
 
-      const char *data = futural[index]; // obtém o array de coordenadas para as linhas que definem o símbolo
-      int size = futural_size[index]; // quantidade de coordenadas das linhas que definem o símbolo
-      char width = futural_width[index]; // largura total do símbolo
-      // o tipo char foi utilizado ao invés de int porque char ocupa apenas 1 byte e int ocupa 4 bytes. Assim, já que apenas um byte é suficiente, para os valores possíveis, isso é preferível.
+      const char *data = futural[index]; //obtém o array de coordenadas para as linhas que definem o símbolo
+      int size = futural_size[index]; //quantidade de coordenadas das linhas que definem o símbolo
+      char width = futural_width[index]; //largura total do símbolo
+      //o tipo char foi utilizado ao invés de int porque char ocupa apenas 1 byte e int ocupa 4 bytes. Assim, já que apenas um byte é suficiente, para os valores possíveis, isso é preferível.
 
       int lastX2 = -1;
       int lastY2 = -1;
@@ -186,79 +240,84 @@ class Text_Conversion{
       }
     }
 
-    void stringToDraw(std::string str, Ctrl* control, Servo* servZ){
+    void stringToDraw(std::string str, Ctrl* control, Servo* servZ, Display* display, Bot_Papel* botPapel){
+
+      std::string currentWord;
+      currentWord.reserve(64);
 
       for(int i = 0; i < str.length(); i++){
-        indexToDrawGlyph(charToIndex(str[i]), control, servZ);
-      }
-
-    }
-
-    void listenToNewText(void *pvParameters){
-      // fica constantemente ouvindo a entrada serial para detectar se a rasp enviou algum texto
-      bool lendoMensagem = false;
-        String mensagem = "";
-        mensagem.reserve(64);
-
-        for (;;) {
-          while (SerialRPi.available() > 0) {
-            char c = SerialRPi.read();
-
-            
-            if (c == '<') {
-              lendoMensagem = true;
-              mensagem = "";
-            } 
-            
-            else if (c == '>') {
-              if (lendoMensagem) {
-                Serial.print("[RECEBIDO COM SUCESSO]: ");
-                Serial.println(mensagem);
-                lendoMensagem = false;
+        if(str[i] == ' '){
+          int wordWidth = 0;
+          for(int a = 0; a < currentWord.size(); a++){
+            wordWidth += futural_width[charToIndex(currentWord[i])];
+          }
+          if(control->checkLimits(wordWidth, 0) == 0){
+            //x fora do limite
+            if(control->checkLimits(0, futural_height * FONT_SCALE) == 1){
+              //y também fora do limite
+              control->requestNewPage(control, servZ, display, botPapel);
+              for(int a = 0; a < currentWord.size(); a++){
+                indexToDrawGlyph(charToIndex(str[i]), control, servZ);
               }
-            } 
-            //pega apenas os caracteres válidos dentro do pacote
-            else if (lendoMensagem) {
-              if (c >= 32 && c <= 126) {//ascii 
-                mensagem += c;
+              currentWord.clear();
+            }else{
+              control->xOffset = 0;
+              control->yOffset += futural_height * FONT_SCALE; //altura de char aleatorio, já que todos tem mesma altura
+              for(int a = 0; a < currentWord.size(); a++){
+                indexToDrawGlyph(charToIndex(str[i]), control, servZ);
               }
+              currentWord.clear();
             }
-
-            vTaskDelay(pdMS_TO_TICKS(1));
+          }else{
+            for(int a = 0; a < currentWord.size(); a++){
+              indexToDrawGlyph(charToIndex(str[i]), control, servZ);
+            }
+            currentWord.clear();
           }
-          vTaskDelay(pdMS_TO_TICKS(10));
+        }else{
+          currentWord += str[i];
         }
-          }
-};
-
-class Display{
-  public:
-
-    char* lastDisplay;
-
-    void setup(){
-      // 1. Turn on power to the peripheral and display rail
-      pinMode(DISPLAY_POWER_ON, OUTPUT);
-      digitalWrite(DISPLAY_POWER_ON, HIGH);
-      delay(100);
-
-      // 2. Initialize display
-      tft.init();
-      tft.setRotation(1); // 1 or 3 for landscape (320x170), 0 or 2 for portrait (170x320)
-      tft.fillScreen(TFT_BLACK);
-    }
-    void showText(char* text){
-      if(lastDisplay == text){
-        return;
-      }else{
-        lastDisplay = text;
+        
       }
-      tft.fillScreen(TFT_BLACK);
-      tft.drawRect(10, 10, 300, 150, TFT_BLUE);
-      tft.setTextColor(TFT_GREEN, TFT_BLACK);
-      tft.setTextSize(2);
-      tft.drawString(text, 20, 30);
+
     }
+
+    static void listenToNewText(void *pvParameters, Ctrl* control, Servo* servZ, Display* display, Bot_Papel* botPapel, Text_Conversion* textConversion){
+      //fica constantemente ouvindo a entrada serial para detectar se a rasp enviou algum texto
+      bool lendoMensagem = false;
+      String mensagem = "";
+      mensagem.reserve(64);
+
+      for (;;) {
+        while (SerialRPi.available() > 0) {
+        char c = SerialRPi.read();
+
+        
+        if (c == '<') {
+          lendoMensagem = true;
+          mensagem = "";
+        } 
+        
+        else if (c == '>') {
+          if (lendoMensagem) {
+            Serial.print("[RECEBIDO COM SUCESSO]: ");
+            Serial.println(mensagem);
+            textConversion->stringToDraw(mensagem.c_str(), control, servZ, display, botPapel);
+            lendoMensagem = false;
+          }
+        } 
+        //pega apenas os caracteres válidos dentro do pacote
+        else if (lendoMensagem) {
+          if (c >= 32 && c <= 126) {//ascii 
+            mensagem += c;
+          }
+        }
+
+        vTaskDelay(pdMS_TO_TICKS(1));
+      }
+      vTaskDelay(pdMS_TO_TICKS(10));
+    }
+  }
 };
 
 Ctrl control;
@@ -279,6 +338,7 @@ void setup(){
 
   botFCX.setup();
   botFCY.setup();
+  botPapel.setup();
 
   control.zeroPosition();
 
@@ -289,16 +349,16 @@ void setup(){
   SerialRPi.begin(BAUDRATE, SERIAL_8N1, RXD2, -1);
 
   xTaskCreatePinnedToCore(
-    listenToNewText, "listenToNewText", 4096, NULL, 1, NULL, 1
+    textConversion.listenToNewText, "listenToNewText", 4096, NULL, 1, NULL, 1
   );
   
 }
 
 void loop(){
-  
-  textConversion.listenToNewText();
+
+  textConversion.listenToNewText(NULL, &control, &servZ, &display, &botPapel, &textConversion);
   vTaskDelay(pdMS_TO_TICKS(1000));
 
-  // caso escute algo no serial, passar para as funções de desenho e ir acumulando em um array de coisas para escrever, como uma fila
+  //caso escute algo no serial, passar para as funções de desenho e ir acumulando em um array de coisas para escrever, como uma fila
   
 }
