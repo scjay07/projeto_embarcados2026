@@ -241,7 +241,25 @@ class Text_Conversion{
       }
     }
 
-    void stringToDraw(std::string str, Ctrl* control, Servo* servZ, Display* display, Bot_Papel* botPapel){
+    static void stringToDraw(void* pvParameters){
+
+      typedef struct {
+        std::string* msg; 
+        Ctrl* control;
+        Servo* servZ; 
+        Display* display;
+        Bot_Papel* botPapel;
+        Text_Conversion* textConversion;
+      } DrawParameters;
+
+      DrawParameters *drawPar = (DrawParameters *)pvParameters;
+
+      std::string str = *drawPar->msg; 
+      Ctrl* control = drawPar->control;
+      Servo* servZ = drawPar->servZ; 
+      Display* display = drawPar->display;
+      Bot_Papel* botPapel = drawPar->botPapel;
+      Text_Conversion* textConversion = drawPar->textConversion;
 
       std::string currentWord;
       currentWord.reserve(64);
@@ -250,7 +268,7 @@ class Text_Conversion{
         if(str[i] == ' '){
           int wordWidth = 0;
           for(int a = 0; a < currentWord.size(); a++){
-            wordWidth += futural_width[charToIndex(currentWord[i])];
+            wordWidth += futural_width[textConversion->charToIndex(currentWord[i])];
           }
           if(control->checkLimits(wordWidth, 0) == 0){
             //x fora do limite
@@ -258,20 +276,20 @@ class Text_Conversion{
               //y também fora do limite
               control->requestNewPage(control, servZ, display, botPapel);
               for(int a = 0; a < currentWord.size(); a++){
-                indexToDrawGlyph(charToIndex(str[i]), control, servZ);
+                textConversion->indexToDrawGlyph(textConversion->charToIndex(str[i]), control, servZ);
               }
               currentWord.clear();
             }else{
               control->xOffset = 0;
               control->yOffset += futural_height * FONT_SCALE; //altura de char aleatorio, já que todos tem mesma altura
               for(int a = 0; a < currentWord.size(); a++){
-                indexToDrawGlyph(charToIndex(str[i]), control, servZ);
+                textConversion->indexToDrawGlyph(textConversion->charToIndex(str[i]), control, servZ);
               }
               currentWord.clear();
             }
           }else{
             for(int a = 0; a < currentWord.size(); a++){
-              indexToDrawGlyph(charToIndex(str[i]), control, servZ);
+              textConversion->indexToDrawGlyph(textConversion->charToIndex(str[i]), control, servZ);
             }
             currentWord.clear();
           }
@@ -292,6 +310,15 @@ class Text_Conversion{
         Bot_Papel* botPapel;
         Text_Conversion* textConversion;
       } TaskParameters;
+
+      typedef struct {
+        std::string* msg; 
+        Ctrl* control;
+        Servo* servZ; 
+        Display* display;
+        Bot_Papel* botPapel;
+        Text_Conversion* textConversion;
+      } DrawParameters;
 
       TaskParameters *taskPar = (TaskParameters *)pvParameters;
 
@@ -320,7 +347,22 @@ class Text_Conversion{
           if (lendoMensagem) {
             Serial.print("[RECEBIDO COM SUCESSO]: ");
             Serial.println(mensagem);
-            textConversion->stringToDraw(mensagem.c_str(), control, servZ, display, botPapel);
+
+            DrawParameters drawPar;
+            std::string mensagemString = mensagem.c_str();
+            //mensagem string para utilizar o ponteiro
+
+            drawPar.msg = &mensagemString;
+            drawPar.control = control;
+            drawPar.servZ = servZ;
+            drawPar.display = display;
+            drawPar.botPapel = botPapel;
+            drawPar.textConversion = textConversion;
+
+            xTaskCreatePinnedToCore(
+              textConversion->stringToDraw, "drawNewText", 4096, &drawPar, 1, NULL, 1
+            );
+
             lendoMensagem = false;
           }
         } 
@@ -374,24 +416,23 @@ void setup(){
   pinMode(RXD2, INPUT_PULLUP);
   SerialRPi.begin(BAUDRATE, SERIAL_8N1, RXD2, -1);
 
+  TaskParameters taskPar;
+
+  taskPar.control = &control;
+  taskPar.servZ = &servZ;
+  taskPar.display = &display;
+  taskPar.botPapel = &botPapel;
+  taskPar.textConversion = &textConversion;
+
   xTaskCreatePinnedToCore(
-    textConversion.listenToNewText, "listenToNewText", 4096, NULL, 1, NULL, 1
+    textConversion.listenToNewText, "listenToNewText", 4096, &taskPar, 1, NULL, 1
   );
   
 }
 
 void loop(){
 
-  TaskParameters taskPar;
-
-  taskPar.control = &control;
-  taskPar.servZ = &servZ; 
-  taskPar.display = &display;
-  taskPar.botPapel = &botPapel;
-  taskPar.textConversion = &textConversion;
-
-  textConversion.listenToNewText(&taskPar);
   vTaskDelay(pdMS_TO_TICKS(1000));
-
   //caso escute algo no serial, passar para as funções de desenho e ir acumulando em um array de coisas para escrever, como uma fila
+
 }
