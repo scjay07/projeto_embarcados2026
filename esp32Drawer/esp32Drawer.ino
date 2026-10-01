@@ -37,6 +37,8 @@
 #define RXD2 13
 #define BAUDRATE 115200
 
+#define SerialRPi Serial2
+
 TaskHandle_t xTaskRxHandle = NULL;
 
 Servo servZ;
@@ -55,7 +57,6 @@ AccelStepper stepperY(MOTOR_INTERFACE_TYPE, Y_IN1, Y_IN3, Y_IN2, Y_IN4);
 MultiStepper steppers;
 
 TFT_eSPI tft = TFT_eSPI();
-
 
 class Bot_FC_X{
   public:
@@ -234,7 +235,7 @@ class Text_Conversion{
 
           control->lineMove(x2, y2);
           lastX2 = x2;
-          lastY2 = x2;
+          lastY2 = y2;
         }
         control->xOffset += width * FONT_SCALE;
       }
@@ -282,7 +283,24 @@ class Text_Conversion{
 
     }
 
-    static void listenToNewText(void *pvParameters, Ctrl* control, Servo* servZ, Display* display, Bot_Papel* botPapel, Text_Conversion* textConversion){
+    static void listenToNewText(void *pvParameters){
+
+      typedef struct {
+        Ctrl* control; 
+        Servo* servZ; 
+        Display* display;
+        Bot_Papel* botPapel;
+        Text_Conversion* textConversion;
+      } TaskParameters;
+
+      TaskParameters *taskPar = (TaskParameters *)pvParameters;
+
+      Ctrl* control = taskPar->control;
+      Servo* servZ = taskPar->servZ; 
+      Display* display = taskPar->display;
+      Bot_Papel* botPapel = taskPar->botPapel;
+      Text_Conversion* textConversion = taskPar->textConversion;
+
       //fica constantemente ouvindo a entrada serial para detectar se a rasp enviou algum texto
       bool lendoMensagem = false;
       String mensagem = "";
@@ -324,6 +342,14 @@ Ctrl control;
 Text_Conversion textConversion;
 Display display;
 
+typedef struct {
+    Ctrl* control; 
+    Servo* servZ; 
+    Display* display;
+    Bot_Papel* botPapel;
+    Text_Conversion* textConversion;
+} TaskParameters;
+
 void setup(){
   
   Serial.begin(115200);
@@ -356,9 +382,16 @@ void setup(){
 
 void loop(){
 
-  textConversion.listenToNewText(NULL, &control, &servZ, &display, &botPapel, &textConversion);
+  TaskParameters taskPar;
+
+  taskPar.control = &control;
+  taskPar.servZ = &servZ; 
+  taskPar.display = &display;
+  taskPar.botPapel = &botPapel;
+  taskPar.textConversion = &textConversion;
+
+  textConversion.listenToNewText(&taskPar);
   vTaskDelay(pdMS_TO_TICKS(1000));
 
   //caso escute algo no serial, passar para as funções de desenho e ir acumulando em um array de coisas para escrever, como uma fila
-  
 }
