@@ -28,13 +28,13 @@
 
 #define BOT_FC_X 1
 #define BOT_FC_Y 2
-#define BOT_PAPEL 12
+#define BOT_PAPEL 17
 
 #define SERVO 3
 
 #define DISPLAY_POWER_ON 15
 
-#define RXD2 13
+#define RXD2 18
 #define BAUDRATE 115200
 
 #define SerialRPi Serial2
@@ -149,10 +149,13 @@ class Ctrl {
       //enquanto botão fim de curso x não grita: vai pra origem x
       //enquanto botão fim de curso y não grita: vai pra origem y
       while (botFCX.isPressed() == false) {
-        stepperX.move(-1);
+        stepperX.move(-1);//claude e gemini falaram que sem o runSpeed ele não se move, o move(-1) apenas seta a posição e não move o motor podem estat chapando
+        stepperX.runSpeed();
+        
       }
       while (botFCY.isPressed() == false) {
         stepperY.move(-1);
+        stepperX.runSpeed();
       }
       stepperX.setCurrentPosition(0);
       stepperY.setCurrentPosition(0);
@@ -160,12 +163,12 @@ class Ctrl {
 
     void liftPen(Servo* servZ) {
       //controla o servo para levantar a caneta
-      servZ->write(0);
+      servZ->write(0); vTaskDelay(pdMS_TO_TICKS(250)); 
     };
 
     void lowerPen(Servo* servZ) {
       //controla o servo para abaixar a caneta
-      servZ->write(100);
+      servZ->write(100); vTaskDelay(pdMS_TO_TICKS(250)); 
     };
 
     void lineMove(int x, int y) {
@@ -272,7 +275,7 @@ class Text_Conversion {
             if (lendoMensagem) {
               Serial.print("[RECEBIDO COM SUCESSO]: ");
               Serial.println(mensagem);
-              char msgLida[64]; //cria um array de char para armazenar a msg lida (6
+              char msgLida[64]; //cria um array de char para armazenar a msg lida
               memset(msgLida, 0, sizeof(msgLida));
               mensagem.toCharArray(msgLida, 64);
               xQueueSend(filaTexto, &msgLida, portMAX_DELAY); //portMAX_DELAY: bloco de tempo para se esperar um evento acontecer                     
