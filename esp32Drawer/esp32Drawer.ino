@@ -148,14 +148,16 @@ class Ctrl {
     void zeroPosition() {
       //enquanto botão fim de curso x não grita: vai pra origem x
       //enquanto botão fim de curso y não grita: vai pra origem y
+      stepperX.move(-1);
       while (botFCX.isPressed() == false) {
-        stepperX.move(-1);//claude e gemini falaram que sem o runSpeed ele não se move, o move(-1) apenas seta a posição e não move o motor podem estat chapando
-        stepperX.runSpeed();
-        
+        //claude e gemini falaram que sem o runSpeed ele não se move, o move(-1) apenas seta a posição e não move o motor podem estat chapando
+        stepperX.move(-1);
+        stepperX.run();
+
       }
       while (botFCY.isPressed() == false) {
         stepperY.move(-1);
-        stepperX.runSpeed();
+        stepperY.run();
       }
       stepperX.setCurrentPosition(0);
       stepperY.setCurrentPosition(0);
@@ -163,12 +165,12 @@ class Ctrl {
 
     void liftPen(Servo* servZ) {
       //controla o servo para levantar a caneta
-      servZ->write(0); vTaskDelay(pdMS_TO_TICKS(250)); 
+      servZ->write(0); vTaskDelay(pdMS_TO_TICKS(250));
     };
 
     void lowerPen(Servo* servZ) {
       //controla o servo para abaixar a caneta
-      servZ->write(100); vTaskDelay(pdMS_TO_TICKS(250)); 
+      servZ->write(100); vTaskDelay(pdMS_TO_TICKS(250));
     };
 
     void lineMove(int x, int y) {
@@ -232,7 +234,7 @@ class Text_Conversion {
       int lastY2 = -1;
 
       if (data != NULL) {
-        for (int i = 0; i < size;i += 4) {
+        for (int i = 0; i < size; i += 4) {
 
           int x1 = data[i + 0] * FONT_SCALE + control->xOffset;
           int y1 = data[i + 1] * FONT_SCALE + control->yOffset;
@@ -278,7 +280,7 @@ class Text_Conversion {
               char msgLida[64]; //cria um array de char para armazenar a msg lida
               memset(msgLida, 0, sizeof(msgLida));
               mensagem.toCharArray(msgLida, 64);
-              xQueueSend(filaTexto, &msgLida, portMAX_DELAY); //portMAX_DELAY: bloco de tempo para se esperar um evento acontecer                     
+              xQueueSend(filaTexto, &msgLida, portMAX_DELAY); //portMAX_DELAY: bloco de tempo para se esperar um evento acontecer
               lendoMensagem = false;
             }
           }
@@ -321,20 +323,20 @@ class Text_Conversion {
                   //y também fora do limite
                   control.requestNewPage(&control, &servZ, &display, &botPapel);
                   for (int a = 0; a < currentWord.length(); a++) {
-                   indexToDrawGlyph(charToIndex(str[i]), &control, &servZ);
+                    indexToDrawGlyph(charToIndex(str[i]), &control, &servZ);
                   }
                   currentWord.clear();
                 } else {
                   control.xOffset = 0;
                   control.yOffset += futural_height * FONT_SCALE; //altura de char aleatorio, já que todos tem mesma altura
                   for (int a = 0; a < currentWord.length(); a++) {
-                 indexToDrawGlyph(charToIndex(str[i]), &control, &servZ);
+                    indexToDrawGlyph(charToIndex(str[i]), &control, &servZ);
                   }
                   currentWord.clear();
                 }
               } else {
                 for (int a = 0; a < currentWord.length(); a++) {
-                 indexToDrawGlyph(charToIndex(str[i]), &control, &servZ);
+                  indexToDrawGlyph(charToIndex(str[i]), &control, &servZ);
                 }
                 currentWord.clear();
               }
