@@ -168,14 +168,12 @@ public:
     //controla o servo para levantar a caneta
     servZ->write(0);
     vTaskDelay(pdMS_TO_TICKS(250));
-    display.showText("servo pra cima");
   };
 
   void lowerPen(Servo* servZ) {
     //controla o servo para abaixar a caneta
     servZ->write(100);
     vTaskDelay(pdMS_TO_TICKS(250));
-    display.showText("servo pra baixo");
   };
 
   void lineMove(int x, int y) {
@@ -267,8 +265,8 @@ public:
     mensagem.reserve(64);
 
     for (;;) {
-      while (Serial.available() > 0) {
-        char c = Serial.read();
+      while (SerialRPi.available() > 0) {
+        char c = SerialRPi.read();
 
         if (c == '<') {
           lendoMensagem = true;
@@ -377,7 +375,6 @@ void setup() {
 
   pinMode(RXD2, INPUT_PULLUP);
   SerialRPi.begin(BAUDRATE, SERIAL_8N1, RXD2, -1);
-
 
   xTaskCreatePinnedToCore(
     Text_Conversion::listenToNewText, "listenToNewText", 4096, NULL, 1, NULL, 1);
