@@ -17,6 +17,7 @@ with sr.Microphone() as mic:
             text = recognizer.recognize_google(audio, language="pt-BR")
             text = text.lower()
             print(f"Você disse: {text}")
+            text =  f"<{text}>"
             ser.write(text.encode('utf-8'))
             print(f"[RPi TX]: {text.strip()}")
             time.sleep(2)
