@@ -45,12 +45,12 @@ QueueHandle_t filaTexto = NULL;
 
 Servo servZ;
 
-const int MAX_X_OFFSET = 100000;  //alterar para algo compatível com a estrutura final
+const int MAX_X_OFFSET = 320;  //alterar para algo compatível com a estrutura final
 const int MAX_Y_OFFSET = 100000;  //alterar para algo compatível com a estrutura final
 
 const int MAX_SPEED = 400;
 
-const int FONT_SCALE = 10;
+const int FONT_SCALE = 1;
 
 String mensagem = "";
 
@@ -136,6 +136,9 @@ public:
     tft.setTextColor(TFT_GREEN, TFT_BLACK);
     tft.setTextSize(2);
     tft.drawString(text, 20, 30);
+  }
+  void drawLine(int x1, int y1, int x2, int y2){
+    tft.drawLine(x1, y1, x2, y2, TFT_GREEN);
   }
 };
 
@@ -236,12 +239,15 @@ public:
     int lastY2 = -1;
 
     if (data != NULL) {
+
       for (int i = 0; i < size; i += 4) {
 
         int x1 = data[i + 0] * FONT_SCALE + control->xOffset;
         int y1 = data[i + 1] * FONT_SCALE + control->yOffset;
         int x2 = data[i + 2] * FONT_SCALE + control->xOffset;
         int y2 = data[i + 3] * FONT_SCALE + control->yOffset;
+
+        display.drawLine(x1, y1, x2, y2);
 
         if (lastX2 != x1 || lastY2 != y1) {
           control->liftPen(servZ);
@@ -254,6 +260,7 @@ public:
         lastY2 = y2;
       }
       control->xOffset += width * FONT_SCALE;
+      Serial.println(control->xOffset);
     }
   }
 
@@ -265,8 +272,8 @@ public:
     mensagem.reserve(64);
 
     for (;;) {
-      while (SerialRPi.available() > 0) {
-        char c = SerialRPi.read();
+      while (Serial.available() > 0) {
+        char c = Serial.read();
 
         if (c == '<') {
           lendoMensagem = true;
@@ -310,12 +317,15 @@ public:
         std::string currentWord = "";
         currentWord.reserve(64);
 
+        display.showText("");
+
         for (int i = 0; i < str.length(); i++) {
           if (str[i] == ' ') {
             int wordWidth = 0;
             for (int a = 0; a < currentWord.length(); a++) {
               wordWidth += futural_width[charToIndex(currentWord[a])];
             }
+            currentWord += ' '; // adiciona um espaço no final para separar da próxima palavra
             if (control.checkLimits(wordWidth, 0) == 0) {
               //x fora do limite
               if (control.checkLimits(0, futural_height * FONT_SCALE) == 1) {
@@ -381,10 +391,11 @@ void setup() {
 
   xTaskCreatePinnedToCore(
     Text_Conversion::stringToDraw, "drawNewText", 8192, NULL, 1, NULL, 1);
+    
 }
 
 void loop() {
 
   vTaskDelay(pdMS_TO_TICKS(1000));
-  //caso escute algo no serial, passar para as funções de desenho e ir acumulando em um array de coisas para escrever, como uma fila
+
 }
