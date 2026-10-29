@@ -15,25 +15,32 @@
 #define MOTOR_INTERFACE_TYPE 4
 
 //Motor X Pins: IN1, IN2, IN3, IN4
+//GUIA DE MONTAGEM: lado direto nas linhas 19, 20, 21, 22, em ordem
 #define X_IN1 10
 #define X_IN2 11
 #define X_IN3 12
 #define X_IN4 13
 
 //Motor Y Pins: IN1, IN2, IN3, IN4
+//GUIA DE MONTAGEM: lado esquerdo nas linhas 17, 18, 21, 22, em ordem
 #define Y_IN1 43
 #define Y_IN2 44
 #define Y_IN3 21
 #define Y_IN4 16
 
+//GUIA DE MONTAGEM: lado direito nas linhas 6 e 7 (quando apertado o botão, deve ligar com o gnd)
 #define BOT_FC_X 1
 #define BOT_FC_Y 2
+
+//GUIA DE MONTAGEM: lado esquerdo na linha 20 (quando apertado o botão, deve ligar com o gnd)
 #define BOT_PAPEL 17
 
+//GUIA DE MONTAGEM: lado direto na linha 18
 #define SERVO 3
 
 #define DISPLAY_POWER_ON 15
 
+//GUIA DE MONTAGEM: lado esquerdo na linha 19 
 #define RXD2 18
 #define BAUDRATE 115200
 
@@ -45,12 +52,12 @@ QueueHandle_t filaTexto = NULL;
 
 Servo servZ;
 
-const int MAX_X_OFFSET = 320;  //alterar para algo compatível com a estrutura final
+const int MAX_X_OFFSET = 320;     //alterar para algo compatível com a estrutura final
 const int MAX_Y_OFFSET = 100000;  //alterar para algo compatível com a estrutura final
 
-const int MAX_SPEED = 400;
+const int MAX_SPEED = 200000;
 
-const int FONT_SCALE = 1;
+const int FONT_SCALE = 10;
 
 String mensagem = "";
 
@@ -137,7 +144,7 @@ public:
     tft.setTextSize(2);
     tft.drawString(text, 20, 30);
   }
-  void drawLine(int x1, int y1, int x2, int y2){
+  void drawLine(int x1, int y1, int x2, int y2) {
     tft.drawLine(x1, y1, x2, y2, TFT_GREEN);
   }
 };
@@ -153,16 +160,17 @@ public:
   void zeroPosition() {
     //enquanto botão fim de curso x não grita: vai pra origem x
     //enquanto botão fim de curso y não grita: vai pra origem y
-    stepperX.move(-1);
-    while (botFCX.isPressed() == false) {
-      //claude e gemini falaram que sem o runSpeed ele não se move, o move(-1) apenas seta a posição e não move o motor podem estat chapando
-      stepperX.move(-1);
-      stepperX.run();
+
+    stepperY.setSpeed(-500);
+    while (!botFCY.isPressed()) {
+      stepperY.runSpeed();
     }
-    while (botFCY.isPressed() == false) {
-      stepperY.move(-1);
-      stepperY.run();
+
+    stepperX.setSpeed(500);
+    while (!botFCX.isPressed()) {
+      stepperX.runSpeed();
     }
+
     stepperX.setCurrentPosition(0);
     stepperY.setCurrentPosition(0);
   }
@@ -325,7 +333,7 @@ public:
             for (int a = 0; a < currentWord.length(); a++) {
               wordWidth += futural_width[charToIndex(currentWord[a])];
             }
-            currentWord += ' '; // adiciona um espaço no final para separar da próxima palavra
+            currentWord += ' ';  // adiciona um espaço no final para separar da próxima palavra
             if (control.checkLimits(wordWidth, 0) == 0) {
               //x fora do limite
               if (control.checkLimits(0, futural_height * FONT_SCALE) == 1) {
@@ -391,11 +399,9 @@ void setup() {
 
   xTaskCreatePinnedToCore(
     Text_Conversion::stringToDraw, "drawNewText", 8192, NULL, 1, NULL, 1);
-    
 }
 
 void loop() {
 
   vTaskDelay(pdMS_TO_TICKS(1000));
-
 }
