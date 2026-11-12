@@ -28,7 +28,7 @@
 #define Y_IN3 21
 #define Y_IN4 16
 
-//GUIA DE MONTAGEM: lado direito nas linhas 6 e 7 (quando apertado o botão, deve ligar com o gnd)
+//GUIA DE MONTAGEM: lado direito nas linhas 16 e 17 (quando apertado o botão, deve ligar com o gnd)
 #define BOT_FC_X 1
 #define BOT_FC_Y 2
 
@@ -52,12 +52,15 @@ QueueHandle_t filaTexto = NULL;
 
 Servo servZ;
 
-const int MAX_X_OFFSET = 320;     //alterar para algo compatível com a estrutura final
-const int MAX_Y_OFFSET = 100000;  //alterar para algo compatível com a estrutura final
+const int MAX_X_OFFSET = 5000;     //alterar para algo compatível com a estrutura final
+const int MAX_Y_OFFSET = 6500;  //alterar para algo compatível com a estrutura final
 
-const int MAX_SPEED = 200000;
+const int MAX_SPEED = 1600;
 
-const int FONT_SCALE = 10;
+const int FONT_SCALE = 30;
+const int LEFT_MARGIN = 2500;
+
+const bool ORIENTACAO = true; // true: paisagem; false: retrato
 
 String mensagem = "";
 
@@ -161,17 +164,35 @@ public:
     //enquanto botão fim de curso x não grita: vai pra origem x
     //enquanto botão fim de curso y não grita: vai pra origem y
 
-    stepperY.setSpeed(-500);
+    stepperY.setSpeed(-1000);
     while (!botFCY.isPressed()) {
       stepperY.runSpeed();
     }
 
-    stepperX.setSpeed(500);
+    stepperX.setSpeed(1000);
     while (!botFCX.isPressed()) {
       stepperX.runSpeed();
     }
 
+    stepperY.setCurrentPosition(0);
     stepperX.setCurrentPosition(0);
+
+    long target[2];
+
+    //as coordenadas são absolutas. NÃO SÃO RELATIVAS
+    target[0] = -LEFT_MARGIN;
+    target[1] = 0;
+
+    steppers.moveTo(target);
+    steppers.runSpeedToPosition();
+
+    stepperX.setCurrentPosition(0);
+
+    target[0] = 0;
+    target[1] = MAX_Y_OFFSET;
+
+    steppers.moveTo(target);
+    steppers.runSpeedToPosition();
     stepperY.setCurrentPosition(0);
   }
 
@@ -191,8 +212,13 @@ public:
     long target[2];
 
     //as coordenadas são absolutas. NÃO SÃO RELATIVAS
-    target[0] = x;
-    target[1] = y;
+    if(ORIENTACAO){
+      target[0] = -x;
+      target[1] = y;
+    }else{
+      target[0] = -y;
+      target[1] = x;
+    }
 
     steppers.moveTo(target);
     steppers.runSpeedToPosition();
@@ -241,6 +267,7 @@ public:
     const char* data = futural[index];  //obtém o array de coordenadas para as linhas que definem o símbolo
     int size = futural_size[index];     //quantidade de coordenadas das linhas que definem o símbolo
     char width = futural_width[index];  //largura total do símbolo
+    char height = futural_height;
     //o tipo char foi utilizado ao invés de int porque char ocupa apenas 1 byte e int ocupa 4 bytes. Assim, já que apenas um byte é suficiente, para os valores possíveis, isso é preferível.
 
     int lastX2 = -1;
@@ -259,11 +286,11 @@ public:
 
         if (lastX2 != x1 || lastY2 != y1) {
           control->liftPen(servZ);
-          control->lineMove(x1, y1);
+          control->lineMove(x1, height - y1);
           control->lowerPen(servZ);
         }
 
-        control->lineMove(x2, y2);
+        control->lineMove(x2, height - y2);
         lastX2 = x2;
         lastY2 = y2;
       }
@@ -274,7 +301,7 @@ public:
 
   static void listenToNewText(void* pvParameters) {
 
-    String mensagem = "";
+    String mensagem = "<oi pessoal>";
     //fica constantemente ouvindo a entrada serial para detectar se a rasp enviou algum texto
     bool lendoMensagem = false;
     mensagem.reserve(64);
@@ -393,12 +420,24 @@ void setup() {
 
   pinMode(RXD2, INPUT_PULLUP);
   SerialRPi.begin(BAUDRATE, SERIAL_8N1, RXD2, -1);
-
+/*
   xTaskCreatePinnedToCore(
     Text_Conversion::listenToNewText, "listenToNewText", 4096, NULL, 1, NULL, 1);
+    */
 
   xTaskCreatePinnedToCore(
     Text_Conversion::stringToDraw, "drawNewText", 8192, NULL, 1, NULL, 1);
+
+    String mensagem = "Oi, professor Nelson! Muito obrigado por nos deixar trabalhar :)";
+
+
+    Serial.print("[RECEBIDO COM SUCESSO]: ");
+            Serial.println(mensagem);
+            char msgLida[64];  //cria um array de char para armazenar a msg lida
+            memset(msgLida, 0, sizeof(msgLida));
+            mensagem.toCharArray(msgLida, 64);
+            xQueueSend(filaTexto, &msgLida, portMAX_DELAY);  //portMAX_DELAY: bloco de tempo para se esperar um evento acontecer
+            
 }
 
 void loop() {
