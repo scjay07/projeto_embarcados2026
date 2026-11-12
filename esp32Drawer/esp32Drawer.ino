@@ -55,12 +55,12 @@ Servo servZ;
 const int MAX_X_OFFSET = 5000;     //alterar para algo compatível com a estrutura final
 const int MAX_Y_OFFSET = 6500;  //alterar para algo compatível com a estrutura final
 
-const int MAX_SPEED = 1600;
+const int MAX_SPEED_X = 900;
+const int MAX_SPEED_Y = 900;
 
 const int FONT_SCALE = 30;
-const int LEFT_MARGIN = 2500;
+const int LEFT_MARGIN = 2000;
 
-const bool ORIENTACAO = true; // true: paisagem; false: retrato
 
 String mensagem = "";
 
@@ -169,7 +169,7 @@ public:
       stepperY.runSpeed();
     }
 
-    stepperX.setSpeed(1000);
+    stepperX.setSpeed(800);
     while (!botFCX.isPressed()) {
       stepperX.runSpeed();
     }
@@ -198,7 +198,7 @@ public:
 
   void liftPen(Servo* servZ) {
     //controla o servo para levantar a caneta
-    servZ->write(0);
+    servZ->write(80);
     vTaskDelay(pdMS_TO_TICKS(250));
   };
 
@@ -212,13 +212,8 @@ public:
     long target[2];
 
     //as coordenadas são absolutas. NÃO SÃO RELATIVAS
-    if(ORIENTACAO){
-      target[0] = -x;
-      target[1] = y;
-    }else{
-      target[0] = -y;
-      target[1] = x;
-    }
+    target[0] = -x;
+    target[1] = y;
 
     steppers.moveTo(target);
     steppers.runSpeedToPosition();
@@ -399,8 +394,8 @@ void setup() {
 
   Serial.begin(115200);
 
-  stepperX.setMaxSpeed(MAX_SPEED);
-  stepperY.setMaxSpeed(MAX_SPEED);
+  stepperX.setMaxSpeed(MAX_SPEED_X);
+  stepperY.setMaxSpeed(MAX_SPEED_Y);
 
   steppers.addStepper(stepperX);
   steppers.addStepper(stepperY);
@@ -410,6 +405,8 @@ void setup() {
   botFCX.setup();
   botFCY.setup();
   botPapel.setup();
+
+  control.liftPen(&servZ);
 
   control.zeroPosition();
 
