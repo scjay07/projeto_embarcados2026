@@ -55,11 +55,13 @@ Servo servZ;
 const int MAX_X_OFFSET = 5000;     //alterar para algo compatível com a estrutura final
 const int MAX_Y_OFFSET = 6500;  //alterar para algo compatível com a estrutura final
 
-const int MAX_SPEED_X = 900;
-const int MAX_SPEED_Y = 900;
+const int MAX_SPEED_X = 750;
+const int MAX_SPEED_Y = 750;
 
 const int FONT_SCALE = 30;
 const int LEFT_MARGIN = 2000;
+
+const bool ORIENTACAO = false; //true: paisagem; false: retrato
 
 
 String mensagem = "";
@@ -177,23 +179,26 @@ public:
     stepperY.setCurrentPosition(0);
     stepperX.setCurrentPosition(0);
 
+    //as coordenadas são absolutas. NÃO SÃO RELATIVAS
     long target[2];
 
-    //as coordenadas são absolutas. NÃO SÃO RELATIVAS
     target[0] = -LEFT_MARGIN;
-    target[1] = 0;
-
-    steppers.moveTo(target);
-    steppers.runSpeedToPosition();
-
-    stepperX.setCurrentPosition(0);
-
-    target[0] = 0;
     target[1] = MAX_Y_OFFSET;
 
     steppers.moveTo(target);
     steppers.runSpeedToPosition();
+    stepperX.setCurrentPosition(0);
     stepperY.setCurrentPosition(0);
+
+    if(ORIENTACAO){
+      target[0] = -MAX_X_OFFSET;
+      target[1] = 0;
+
+      steppers.moveTo(target);
+      steppers.runSpeedToPosition();
+      stepperX.setCurrentPosition(0);
+    }
+
   }
 
   void liftPen(Servo* servZ) {
@@ -212,8 +217,13 @@ public:
     long target[2];
 
     //as coordenadas são absolutas. NÃO SÃO RELATIVAS
-    target[0] = -x;
-    target[1] = y;
+    if(ORIENTACAO == true){
+      target[0] = -y;
+      target[1] = -x;
+    }else{
+      target[0] = -x;
+      target[1] = y;
+    }
 
     steppers.moveTo(target);
     steppers.runSpeedToPosition();
