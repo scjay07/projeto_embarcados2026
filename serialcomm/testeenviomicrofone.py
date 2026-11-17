@@ -1,12 +1,12 @@
 import speech_recognition as sr
 import serial
 import time
-from gpiozero import Button
+#from gpiozero import Button
 
-botao = Button(2)  
+#botao = Button(2)  
 
 recognizer = sr.Recognizer()
-ser = serial.Serial('/dev/serial0', 115200, timeout=1)
+ser = serial.Serial('/dev/serial0', 9600, timeout=1)
 time.sleep(2) # Aguarda estabilização da conexão
 
 with sr.Microphone() as mic:
@@ -14,16 +14,17 @@ with sr.Microphone() as mic:
     recognizer.adjust_for_ambient_noise(mic, duration=1)
     print("Pronto! Pode falar...")
 
-    while botao.is_pressed:
+    while True:
         try:
             audio = recognizer.listen(mic)
             text = recognizer.recognize_google(audio, language="pt-BR")
             text = text.lower()
             print(f"Você disse: {text}")
-            text =  f"<{text}>"
+            text = f"<{text}>"
+            ser.reset_input_buffer()
             ser.write(text.encode('utf-8'))
             print(f"[RPi TX]: {text.strip()}")
-            time.sleep(2)
+            time.sleep(0.5)
 
 
         except sr.UnknownValueError:
