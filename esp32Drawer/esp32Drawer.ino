@@ -58,6 +58,8 @@ const int MAX_Y_OFFSET = 6500;  //alterar para algo compatível com a estrutura 
 const int MAX_SPEED_X = 750;
 const int MAX_SPEED_Y = 750;
 
+const int ACCEL = 750;
+
 const int FONT_SCALE = 30;
 const int LEFT_MARGIN = 2000;
 
@@ -306,14 +308,14 @@ public:
 
   static void listenToNewText(void* pvParameters) {
 
-    String mensagem = "<oi pessoal>";
+    String mensagem = "";
     //fica constantemente ouvindo a entrada serial para detectar se a rasp enviou algum texto
     bool lendoMensagem = false;
     mensagem.reserve(64);
 
     for (;;) {
-      while (Serial.available() > 0) {
-        char c = Serial.read();
+      while (SerialRPi.available() > 0) {
+        char c = SerialRPi.read();
 
         if (c == '<') {
           lendoMensagem = true;
@@ -422,19 +424,19 @@ void setup() {
 
   filaTexto = xQueueCreate(10, sizeof(char) * 64);
 
-  display.setup();
-  display.showText("VAMO TELLER JULIA BIAAA");
+  //display.setup();
+  //display.showText("VAMO TELLER JULIA BIAAA");
 
   pinMode(RXD2, INPUT_PULLUP);
   SerialRPi.begin(BAUDRATE, SERIAL_8N1, RXD2, -1);
-/*
+
   xTaskCreatePinnedToCore(
     Text_Conversion::listenToNewText, "listenToNewText", 4096, NULL, 1, NULL, 1);
-    */
+    
 
   xTaskCreatePinnedToCore(
     Text_Conversion::stringToDraw, "drawNewText", 8192, NULL, 1, NULL, 1);
-
+/*
     String mensagem = "Oi, professor Nelson! Muito obrigado por nos deixar trabalhar :)";
 
 
@@ -444,7 +446,7 @@ void setup() {
             memset(msgLida, 0, sizeof(msgLida));
             mensagem.toCharArray(msgLida, 64);
             xQueueSend(filaTexto, &msgLida, portMAX_DELAY);  //portMAX_DELAY: bloco de tempo para se esperar um evento acontecer
-            
+            */
 }
 
 void loop() {
