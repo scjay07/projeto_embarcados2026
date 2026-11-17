@@ -42,7 +42,7 @@
 
 //GUIA DE MONTAGEM: lado esquerdo na linha 19 
 #define RXD2 18
-#define BAUDRATE 115200
+#define BAUDRATE 9600
 
 #define SerialRPi Serial2
 
@@ -287,7 +287,7 @@ public:
         int x2 = data[i + 2] * FONT_SCALE + control->xOffset;
         int y2 = data[i + 3] * FONT_SCALE + control->yOffset;
 
-        display.drawLine(x1, y1, x2, y2);
+        // display.drawLine(x1, y1, x2, y2);
 
         if (lastX2 != x1 || lastY2 != y1) {
           control->liftPen(servZ);
@@ -304,45 +304,50 @@ public:
     }
   }
 
-  static void listenToNewText(void* pvParameters) {
+static void listenToNewText(void* pvParameters) {
+  String mensagem = "";
+  mensagem.reserve(64);
+  bool lendoMensagem = false;
 
-    String mensagem = "<oi pessoal>";
-    //fica constantemente ouvindo a entrada serial para detectar se a rasp enviou algum texto
-    bool lendoMensagem = false;
-    mensagem.reserve(64);
+  for (;;) {
+    while (SerialRPi.available() > 0) {
+      int inByte = SerialRPi.read();
+      if (inByte < 0) continue; // Descarta leituras inválidas
 
-    for (;;) {
-      while (Serial.available() > 0) {
-        char c = Serial.read();
+      char c = (char)inByte;
 
-        if (c == '<') {
-          lendoMensagem = true;
-          mensagem = "";
+      // Debug: descomente abaixo caso queira ver byte a byte no monitor USB nativo
+      Serial.write(c);
+
+      if (c == '<') {
+        lendoMensagem = true;
+        mensagem = "";
+      } 
+      else if (c == '>') {
+        if (lendoMensagem) {
+          Serial.print("[RECEBIDO COM SUCESSO]: ");
+          Serial.println(mensagem);
+
+          char msgLida[64];
+          memset(msgLida, 0, sizeof(msgLida));
+          mensagem.toCharArray(msgLida, sizeof(msgLida));
+
+          xQueueSend(filaTexto, &msgLida, portMAX_DELAY);
+          lendoMensagem = false;
         }
-
-        else if (c == '>') {
-          if (lendoMensagem) {
-            Serial.print("[RECEBIDO COM SUCESSO]: ");
-            Serial.println(mensagem);
-            char msgLida[64];  //cria um array de char para armazenar a msg lida
-            memset(msgLida, 0, sizeof(msgLida));
-            mensagem.toCharArray(msgLida, 64);
-            xQueueSend(filaTexto, &msgLida, portMAX_DELAY);  //portMAX_DELAY: bloco de tempo para se esperar um evento acontecer
-            lendoMensagem = false;
-          }
-        }
-        //pega apenas os caracteres válidos dentro do pacote
-        else if (lendoMensagem) {
-          if (c >= 32 && c <= 126) {  //ascii
+      } 
+      else if (lendoMensagem) {
+        if (c >= 32 && c <= 126) {
+          if (mensagem.length() < 63) {
             mensagem += c;
           }
         }
-
-        vTaskDelay(pdMS_TO_TICKS(1));
       }
-      vTaskDelay(pdMS_TO_TICKS(10));
     }
+    // Delay curto para ceder tempo para outras tasks no FreeRTOS
+    vTaskDelay(pdMS_TO_TICKS(5));
   }
+}
 
   static void stringToDraw(void* pvParameters) {
 
@@ -357,7 +362,7 @@ public:
         std::string currentWord = "";
         currentWord.reserve(64);
 
-        display.showText("");
+        //display.showText("");
 
         for (int i = 0; i < str.length(); i++) {
           if (str[i] == ' ') {
@@ -402,7 +407,7 @@ Text_Conversion textConversion;
 
 void setup() {
 
-  Serial.begin(115200);
+  Serial.begin(9600);
 
   stepperX.setMaxSpeed(MAX_SPEED_X);
   stepperY.setMaxSpeed(MAX_SPEED_Y);
@@ -427,14 +432,14 @@ void setup() {
 
   pinMode(RXD2, INPUT_PULLUP);
   SerialRPi.begin(BAUDRATE, SERIAL_8N1, RXD2, -1);
-/*
+
   xTaskCreatePinnedToCore(
     Text_Conversion::listenToNewText, "listenToNewText", 4096, NULL, 1, NULL, 1);
-    */
+    
 
   xTaskCreatePinnedToCore(
     Text_Conversion::stringToDraw, "drawNewText", 8192, NULL, 1, NULL, 1);
-
+/*
     String mensagem = "Oi, professor Nelson! Muito obrigado por nos deixar trabalhar :)";
 
 
@@ -444,7 +449,7 @@ void setup() {
             memset(msgLida, 0, sizeof(msgLida));
             mensagem.toCharArray(msgLida, 64);
             xQueueSend(filaTexto, &msgLida, portMAX_DELAY);  //portMAX_DELAY: bloco de tempo para se esperar um evento acontecer
-            
+  */          
 }
 
 void loop() {
