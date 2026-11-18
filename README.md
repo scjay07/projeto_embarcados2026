@@ -3,6 +3,6 @@ Esse é o repositório organizado sobre o projeto de embarcados da matéria de P
 
 ### Autores
 >Beatriz Di Nur Wakabayashi - 17862848
->Julia Arakaki Yoshimatsu - 17901326
->Pedro Paulo Lima Soares - 16897028
->Vitor Teller Peressim - 15492495
+>	Júlia Arakaki Yoshimatsu - 17901326
+>	Pedro Paulo Lima Soares - 16897028
+>	Vitor Teller Peressim - 15492495
