@@ -1,10 +1,15 @@
 import speech_recognition as sr
 import serial
 import time
+import unicodedata
+#from gpiozero import Button
+
+#botao = Button(2)  
 
 recognizer = sr.Recognizer()
-ser = serial.Serial('/dev/serial0', 115200, timeout=1)
+ser = serial.Serial('/dev/serial0', 9600, timeout=1)
 time.sleep(2) # Aguarda estabilização da conexão
+
 
 with sr.Microphone() as mic:
     print("Ajustando ruído de fundo... Aguarde.")
@@ -15,11 +20,15 @@ with sr.Microphone() as mic:
         try:
             audio = recognizer.listen(mic)
             text = recognizer.recognize_google(audio, language="pt-BR")
-            text = text.lower()
+            text = unicodedata.normalize('NFKD',text) #tira os acentos
+            text =  text.encode('ascii','ignore').decode('ascii') #essa parte joga o acento fora
+            text = text.lower() #coloca o texto em lowercase
             print(f"Você disse: {text}")
-            ser.write(text.encode('utf-8'))
+            text = f"<{text}>"
+            ser.reset_input_buffer()
+            ser.write(text.encode('ascii'))
             print(f"[RPi TX]: {text.strip()}")
-            time.sleep(2)
+            time.sleep(0.5)
 
 
         except sr.UnknownValueError:
