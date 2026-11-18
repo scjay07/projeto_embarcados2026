@@ -55,17 +55,15 @@ Servo servZ;
 const int MAX_X_OFFSET = 5000;     //alterar para algo compatível com a estrutura final
 const int MAX_Y_OFFSET = 6500;  //alterar para algo compatível com a estrutura final
 
-const int MAX_SPEED_X = 750;
-const int MAX_SPEED_Y = 750;
+const int MAX_SPEED_X = 600;
+const int MAX_SPEED_Y = 600;
 
 const int FONT_SCALE = 30;
 const int LEFT_MARGIN = 2000;
 
 const bool ORIENTACAO = false; //true: paisagem; false: retrato
 
-
 String mensagem = "";
-
 
 //IMPORTANT: Wire order passed to AccelStepper MUST be: IN1, IN3, IN2, IN4
 AccelStepper stepperX(MOTOR_INTERFACE_TYPE, X_IN1, X_IN3, X_IN2, X_IN4);
@@ -162,6 +160,11 @@ public:
   int xOffset = 0;  //para levar em conta próximas letras e palavras
   int yOffset = 0;  //para levar em conta mudanças de linha
 
+  void stepperOff(){
+    stepperX.disableOutputs();
+    stepperY.disableOutputs();
+  }
+
   void zeroPosition() {
     //enquanto botão fim de curso x não grita: vai pra origem x
     //enquanto botão fim de curso y não grita: vai pra origem y
@@ -209,7 +212,7 @@ public:
 
   void lowerPen(Servo* servZ) {
     //controla o servo para abaixar a caneta
-    servZ->write(100);
+    servZ->write(105);
     vTaskDelay(pdMS_TO_TICKS(250));
   };
 
@@ -362,13 +365,11 @@ static void listenToNewText(void* pvParameters) {
         std::string currentWord = "";
         currentWord.reserve(64);
 
-        //display.showText("");
-
         for (int i = 0; i < str.length(); i++) {
           if (str[i] == ' ') {
             int wordWidth = 0;
             for (int a = 0; a < currentWord.length(); a++) {
-              wordWidth += futural_width[charToIndex(currentWord[a])];
+              wordWidth += int(futural_width[charToIndex(currentWord[a])]);
             }
             currentWord += ' ';  // adiciona um espaço no final para separar da próxima palavra
             if (control.checkLimits(wordWidth, 0) == 0) {
@@ -398,6 +399,7 @@ static void listenToNewText(void* pvParameters) {
             currentWord += str[i];
           }
         }
+        control.stepperOff();
       }
     }
   }
@@ -424,11 +426,12 @@ void setup() {
   control.liftPen(&servZ);
 
   control.zeroPosition();
+  control.stepperOff();
 
   filaTexto = xQueueCreate(10, sizeof(char) * 64);
 
   display.setup();
-  display.showText("VAMO TELLER JULIA BIAAA");
+  display.showText("PMR0120 BIJUPETE");
 
   pinMode(RXD2, INPUT_PULLUP);
   SerialRPi.begin(BAUDRATE, SERIAL_8N1, RXD2, -1);
@@ -439,17 +442,7 @@ void setup() {
 
   xTaskCreatePinnedToCore(
     Text_Conversion::stringToDraw, "drawNewText", 8192, NULL, 1, NULL, 1);
-/*
-    String mensagem = "Oi, professor Nelson! Muito obrigado por nos deixar trabalhar :)";
 
-
-    Serial.print("[RECEBIDO COM SUCESSO]: ");
-            Serial.println(mensagem);
-            char msgLida[64];  //cria um array de char para armazenar a msg lida
-            memset(msgLida, 0, sizeof(msgLida));
-            mensagem.toCharArray(msgLida, 64);
-            xQueueSend(filaTexto, &msgLida, portMAX_DELAY);  //portMAX_DELAY: bloco de tempo para se esperar um evento acontecer
-  */          
 }
 
 void loop() {
